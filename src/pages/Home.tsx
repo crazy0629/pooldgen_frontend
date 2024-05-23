@@ -218,7 +218,7 @@ const Home = () => {
                 </div>
               ) : (
                 <iframe
-                  src="https://portal.poolgame.meme/"
+                  src="https://portal.poolgame.meme/?c=${1}&u=${user_id}"
                   width="100%"
                   height="600px"
                   scrolling="no"
