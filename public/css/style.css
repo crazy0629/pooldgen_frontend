@@ -164,7 +164,38 @@ a,
     text-transform: uppercase;
     padding-bottom: 20px;
 }
-
+.score-title {
+    font-size: 30px !important;
+}
+.bonus-title {
+    font-size: 40px !important;
+    margin-top: 30px;
+}
+.bonus-input {
+    display: block;
+    margin: 1em 0;
+    height: 40px;
+    width: 100%;
+}
+.update-btn {
+    margin-top: 20px;
+}
+.retweet-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+.user-table-header th,
+.user-table-row td {
+  border-bottom: 1px solid white;
+  padding: 10px; /* Adjust padding as needed */
+}
+.user-table-header {
+    background-color: gray;
+}
+.user-table-row {
+  margin-bottom: 10px; /* Add vertical spacing between rows */
+}
 .linear-text {
     background: var(--linear-bg);
     background-clip: text;

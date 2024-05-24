@@ -11,8 +11,8 @@ const Home = () => {
   const [isReady, setReady] = useState(false);
   const [user_id, setUserId] = useState("");
   const [screen_name, setScreenName] = useState("");
-
-
+  const [total_score, setTotalScore] = useState<Number>(0);
+  const [showRetweet, setShowRetweet] = useState<Boolean>(false);
   const [copiedText, copy] = useCopyToClipboard();
   const defaultPostTxt = "Follow Us";
 
@@ -33,27 +33,32 @@ const Home = () => {
   };
 
   const onSuccess = (response: any) => {
-    response.json().then((body: any) => {
-      const { user_id, screen_name, verify } = body;
-      console.log("User ID:", user_id);
-      console.log("Screen Name:", screen_name);
-
-      setUserId(user_id);
-      setScreenName(screen_name);
-
-      if (verify) {
-        setReady(true);
-      }
-
-      // Handle user_id and screen_name as needed
-    }).catch((error: any) => {
-      console.error("Error parsing JSON:", error);
-      toast.error("Login failed!");
-    });
+    response
+      .json()
+      .then((body: any) => {
+        localStorage.setItem("userDetails", JSON.stringify(body));
+        setUserDetails(body);
+      })
+      .catch((error: unknown) => {
+        console.error("login failed", error);
+        toast.error("Login failed!");
+      });
   };
 
+  const setUserDetails = (data: any) => {
+    const { user_id, screen_name, verify, total_score } = data;
+
+    setUserId(user_id);
+    setScreenName(screen_name);
+    setTotalScore(total_score);
+
+    if (verify) {
+      setReady(true);
+    }
+  };
   const handleDefaultPost = async () => {
-    if(user_id === "" || screen_name === "") return toast.error("Please login first!");
+    if (user_id === "" || screen_name === "")
+      return toast.error("Please login first!");
     const twitterUrl = `https://twitter.com/intent/tweet?text=${defaultPostTxt}`;
 
     window.open(
@@ -61,26 +66,44 @@ const Home = () => {
       "Twitter Share",
       "width=600,height=400,resizable=yes,scrollbars=yes,status=yes"
     );
-    
+
     setTimeout(async () => {
-      try {        
-        const res = await axios.post(`${import.meta.env.VITE_SERVER_URI}/api/v1/auth/tweet`, {
-          user_id
-        })
-        if (res && res.data && res.data.success) {
-          setReady(true)
+      try {
+        const tweetres = await axios.post(
+          `${import.meta.env.VITE_SERVER_URI}/api/v1/auth/tweet`,
+          {
+            user_id,
+          }
+        );
+        if (tweetres && tweetres.data && tweetres.data.success) {
+          updateVerified();
+          const response = await axios.get(
+            `${import.meta.env.VITE_SERVER_URI}/api/v1/score/get-bonus-points`
+          );
+          const retweet_bonus = response?.data?.bonus?.retweet_bonus ?? 0;
+          const res = await axios.post(
+            `${import.meta.env.VITE_SERVER_URI}/api/v1/score/update-user-score`,
+            {
+              user_id,
+              score: retweet_bonus,
+            }
+          );
+          updateTotalScore(res?.data?.updatedUser?.total_score);
+          setReady(true);
+          setShowRetweet(false);
+          setTotalScore(res?.data?.updatedUser?.total_score);
         }
       } catch (error) {
-        console.log('tweet error => ', error);
-        toast.error("Tweeting error!")
+        toast.error("Tweeting error!");
       }
     }, 2000);
   };
 
   const followPool = async () => {
-    if(user_id === "" || screen_name === "") return toast.error("Please login first!");
+    if (user_id === "" || screen_name === "")
+      return toast.error("Please login first!");
     const twitterUrl = `https://twitter.com/intent/follow?screen_name=bitsportgaming`;
-    
+
     window.open(
       twitterUrl,
       "Twitter Share",
@@ -88,28 +111,90 @@ const Home = () => {
     );
 
     setTimeout(async () => {
-      try {        
-        const res = await axios.post(`${import.meta.env.VITE_SERVER_URI}/api/v1/auth/follow`, {
-          user_id
-        })
+      try {
+        const res = await axios.post(
+          `${import.meta.env.VITE_SERVER_URI}/api/v1/auth/follow`,
+          {
+            user_id,
+          }
+        );
         if (res && res.data && res.data.success) {
-          setReady(true)
+          updateVerified();
+          setReady(true);
         }
       } catch (error) {
-        console.log('following error => ', error);
-        toast.error("Following error!")
+        toast.error("Following error!");
       }
-
     }, 2000);
   };
 
   useEffect(() => {
     if (isReady) {
       setReady(true);
-      toast.success("Congratulation! You can play game for now!");
+      if (!showRetweet) {
+        toast.success("Congratulation! You can play game for now!");
+      }
     }
   }, [isReady]);
 
+  useEffect(() => {
+    const userData = localStorage.getItem("userDetails");
+    if (userData) {
+      setShowRetweet(true);
+      setUserDetails(JSON.parse(userData));
+    }
+  }, []);
+
+  useEffect(() => {
+    window.onmessage = handleMessage;
+    return () => {
+      window.onmessage = null;
+    };
+  }, [user_id]);
+
+  const handleMessage = async (e: MessageEvent) => {
+    if (e?.data?.score > 0) {
+      try {
+        //get winning points
+        const response = await axios.get(
+          `${import.meta.env.VITE_SERVER_URI}/api/v1/score/get-bonus-points`
+        );
+        const winning_bonus = response?.data?.bonus?.winning_bonus ?? 0;
+
+        //update user bonus
+        const res = await axios.post(
+          `${import.meta.env.VITE_SERVER_URI}/api/v1/score/update-user-score`,
+          {
+            user_id,
+            score: e?.data?.score + winning_bonus,
+          }
+        );
+        setTotalScore(res?.data?.updatedUser?.total_score);
+        updateTotalScore(res?.data?.updatedUser?.total_score);
+      } catch (error) {
+        console.error("Error following user:", error);
+      }
+    }
+    setShowRetweet(true);
+  };
+
+  const updateTotalScore = (score: Number) => {
+    const userdata = localStorage.getItem("userDetails");
+    if (userdata) {
+      const parsed = JSON.parse(userdata);
+      parsed.total_score = score;
+      localStorage.setItem("userDetails", JSON.stringify(parsed));
+    }
+  };
+  //update verify flag in localstorage
+  const updateVerified = () => {
+    const userdata = localStorage.getItem("userDetails");
+    if (userdata) {
+      const parsed = JSON.parse(userdata);
+      parsed.verify = true;
+      localStorage.setItem("userDetails", JSON.stringify(parsed));
+    }
+  };
   return (
     <>
       <Header />
@@ -184,14 +269,23 @@ const Home = () => {
                     <span className="linear-text"> Playing</span>
                   </div>
                 ) : (
-                  <div className="sub-title">
-                    <br className="d-none d-md-block" />
-                    Start<span className="linear-text"> Playing</span>
+                  <div>
+                    <div className="sub-title">
+                      <br className="d-none d-md-block" />
+                      Start<span className="linear-text"> Playing</span>
+                    </div>
+                    <div className="sub-title score-title">
+                      Score :
+                      <span className="linear-text">
+                        {" "}
+                        {String(total_score)}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {!isReady ? (
+              {!isReady && (
                 <div className="container d-flex justify-content-around pb-5 gx-1">
                   <TwitterLogin
                     loginUrl={`${
@@ -216,13 +310,22 @@ const Home = () => {
                     <span>Retweet Default Tweet</span>
                   </button>
                 </div>
-              ) : (
+              )}
+              {isReady && !showRetweet && (
                 <iframe
                   src="https://portal.poolgame.meme/?c=${1}&u=${user_id}"
                   width="100%"
                   height="600px"
                   scrolling="no"
                 ></iframe>
+              )}
+
+              {showRetweet && isReady && (
+                <div className="retweet-container">
+                  <button className="primary-btn" onClick={handleDefaultPost}>
+                    <span>Retweet Default Tweet</span>
+                  </button>
+                </div>
               )}
 
               <div className="row gy-4 justify-content-center align-items-center">
