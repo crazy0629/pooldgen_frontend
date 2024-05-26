@@ -35,7 +35,7 @@ const UserList = () => {
                     <thead>
                       <tr className="user-table-header">
                         <th>User</th>
-                        <th>POOLD</th>
+                        <th>POOL</th>
                       </tr>
                     </thead>
                     <tbody>

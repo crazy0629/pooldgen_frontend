@@ -11,7 +11,7 @@ const Home = () => {
   const [isReady, setReady] = useState(false);
   const [user_id, setUserId] = useState("");
   const [screen_name, setScreenName] = useState("");
-  const [total_score, setTotalScore] = useState<Number>(0);
+  const [total_score, setTotalScore] = useState<number>(0);
   const [showRetweet, setShowRetweet] = useState<Boolean>(false);
   const [copiedText, copy] = useCopyToClipboard();
   const defaultPostTxt = "Follow Us";
@@ -53,6 +53,7 @@ const Home = () => {
     setTotalScore(total_score);
 
     if (verify) {
+      setShowRetweet(true);
       setReady(true);
     }
   };
@@ -197,7 +198,7 @@ const Home = () => {
   };
   return (
     <>
-      <Header />
+      <Header points={total_score} />
       <div>
         <div>
           <section className="banner">
@@ -285,48 +286,60 @@ const Home = () => {
                 )}
               </div>
 
-              {!isReady && (
-                <div className="container d-flex justify-content-around pb-5 gx-1">
-                  <TwitterLogin
-                    loginUrl={`${
-                      import.meta.env.VITE_SERVER_URI
-                    }/api/v1/auth/twitter`}
-                    onFailure={onFailed}
-                    onSuccess={onSuccess}
-                    requestTokenUrl={`${
-                      import.meta.env.VITE_SERVER_URI
-                    }/api/v1/auth/twitter/reverse`}
-                    showIcon={true}
-                    style={{ backgroundColor: "transparent", border: "none" }}
-                  >
-                    <span className="primary-btn">
-                      <span>Connect twitter</span>
-                    </span>
-                  </TwitterLogin>
-                  <button className="primary-btn" onClick={followPool}>
-                    <span>Follow Pool Degen</span>
-                  </button>
-                  <button className="primary-btn" onClick={handleDefaultPost}>
-                    <span>Retweet Default Tweet</span>
-                  </button>
-                </div>
-              )}
-              {isReady && !showRetweet && (
+              <div className="game-container">
+                {!isReady && (
+                  <div className="twitter-btns-container">
+                    <div className="twitter-container-overlay"></div>
+                    {!isReady && (
+                      <div className="container d-flex justify-content-around pb-5 gx-1">
+                        <TwitterLogin
+                          loginUrl={`${
+                            import.meta.env.VITE_SERVER_URI
+                          }/api/v1/auth/twitter`}
+                          onFailure={onFailed}
+                          onSuccess={onSuccess}
+                          requestTokenUrl={`${
+                            import.meta.env.VITE_SERVER_URI
+                          }/api/v1/auth/twitter/reverse`}
+                          showIcon={true}
+                          style={{
+                            backgroundColor: "transparent",
+                            border: "none",
+                          }}
+                        >
+                          <span className="primary-btn">
+                            <span>Connect twitter</span>
+                          </span>
+                        </TwitterLogin>
+                        <button className="primary-btn" onClick={followPool}>
+                          <span>Follow Pool Degen</span>
+                        </button>
+                        <button
+                          className="primary-btn"
+                          onClick={handleDefaultPost}
+                        >
+                          <span>Retweet Default Tweet</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {showRetweet && (
+                  <div className="twitter-btns-container">
+                    <div className="twitter-container-overlay"></div>
+
+                    <button className="primary-btn" onClick={handleDefaultPost}>
+                      <span>Retweet Default Tweet</span>
+                    </button>
+                  </div>
+                )}
                 <iframe
                   src="https://portal.poolgame.meme/?c=${1}&u=${user_id}"
                   width="100%"
                   height="600px"
                   scrolling="no"
                 ></iframe>
-              )}
-
-              {showRetweet && isReady && (
-                <div className="retweet-container">
-                  <button className="primary-btn" onClick={handleDefaultPost}>
-                    <span>Retweet Default Tweet</span>
-                  </button>
-                </div>
-              )}
+              </div>
 
               <div className="row gy-4 justify-content-center align-items-center">
                 <div className="col-lg-6 col-xl-4 text-center">
