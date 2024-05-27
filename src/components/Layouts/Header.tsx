@@ -28,7 +28,7 @@ const Header = ({ points }: { points: number }) => {
           </div>
           <div className="d-flex align-items-center gap-2">
             <div className="primary-btn buy-btn">
-              <span>{String(points)} POOL</span>
+              <span>${0.002 * points} / {String(points)} POOL</span>
             </div>
 
             <button
