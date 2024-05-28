@@ -7,14 +7,21 @@ import TwitterLogin from "react-twitter-auth";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+interface Tweet {
+  tweet_id: string;
+  content: string;
+}
+
 const Home = () => {
   const [isReady, setReady] = useState(false);
   const [user_id, setUserId] = useState("");
   const [screen_name, setScreenName] = useState("");
   const [total_score, setTotalScore] = useState<number>(0);
   const [showRetweet, setShowRetweet] = useState<Boolean>(false);
+  const [follow, setFollow] = useState<boolean>(false);
   const [copiedText, copy] = useCopyToClipboard();
-  const defaultPostTxt = "Follow Us";
+
+  const [default_tweet, setDefaultTweet] = useState<Tweet>();
 
   const handleCopy = (text: string) => {
     copy(text)
@@ -38,6 +45,7 @@ const Home = () => {
       .then((body: any) => {
         localStorage.setItem("userDetails", JSON.stringify(body));
         setUserDetails(body);
+        toast.success("Login success!")
       })
       .catch((error: unknown) => {
         console.error("login failed", error);
@@ -46,11 +54,13 @@ const Home = () => {
   };
 
   const setUserDetails = (data: any) => {
-    const { user_id, screen_name, verify, total_score } = data;
+    const { user_id, screen_name, verify, total_score, follow, default_tweet } = data;
 
     setUserId(user_id);
     setScreenName(screen_name);
     setTotalScore(total_score);
+    setFollow(follow);
+    setDefaultTweet(default_tweet);
 
     if (verify) {
       setShowRetweet(true);
@@ -60,9 +70,9 @@ const Home = () => {
   const handleDefaultPost = async () => {
     if (user_id === "" || screen_name === "")
       return toast.error("Please login first!");
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${defaultPostTxt}`;
+    const twitterUrl = `https://twitter.com/intent/retweet?tweet_id=${default_tweet?.tweet_id}`;
 
-    window.open(
+     window.open(
       twitterUrl,
       "Twitter Share",
       "width=600,height=400,resizable=yes,scrollbars=yes,status=yes"
@@ -71,9 +81,10 @@ const Home = () => {
     setTimeout(async () => {
       try {
         const tweetres = await axios.post(
-          `${import.meta.env.VITE_SERVER_URI}/api/v1/auth/tweet`,
+          `${import.meta.env.VITE_SERVER_URI}/api/v1/settweet`,
           {
             user_id,
+            tweet_id: default_tweet?.tweet_id
           }
         );
         if (tweetres && tweetres.data && tweetres.data.success) {
@@ -93,11 +104,13 @@ const Home = () => {
           setReady(true);
           setShowRetweet(false);
           setTotalScore(res?.data?.updatedUser?.total_score);
+        } else {
+          toast.error("Retweet verify failed! Please try again!");
         }
-      } catch (error) {
-        toast.error("Tweeting error!");
+      } catch (error: any) {
+        toast.error(error.response.data.err);
       }
-    }, 2000);
+    }, 6000);
   };
 
   const followPool = async () => {
@@ -140,10 +153,34 @@ const Home = () => {
 
   useEffect(() => {
     const userData = localStorage.getItem("userDetails");
+
+    console.log("calling user data ")
+
     if (userData) {
+      const getDefaultTweet = async (userId: string) => {
+        console.log("user id => ", userId)
+        try {
+          const res = await axios.post(
+            `${import.meta.env.VITE_SERVER_URI}/api/v1/get-tweet`,
+            {
+              user_id: userId,
+            }
+          );
+          if (res) {
+            setDefaultTweet(res.data.default_tweet)
+          }
+        } catch (error: any) {
+          console.log("getting default => ", error);
+          localStorage.removeItem("userDetails");
+          // toast.error(error.response.data.err);
+        }
+      }
       setShowRetweet(true);
       setUserDetails(JSON.parse(userData));
+      const userId= JSON.parse(userData).user_id;
+      getDefaultTweet(userId);
     }
+    
   }, []);
 
   useEffect(() => {
@@ -152,6 +189,7 @@ const Home = () => {
       window.onmessage = null;
     };
   }, [user_id]);
+
 
   const handleMessage = async (e: MessageEvent) => {
     if (e?.data?.score > 0) {
@@ -292,28 +330,36 @@ const Home = () => {
                     <div className="twitter-container-overlay"></div>
                     {!isReady && (
                       <div className="container d-flex justify-content-around pb-5 gx-1">
-                        <TwitterLogin
-                          loginUrl={`${
-                            import.meta.env.VITE_SERVER_URI
-                          }/api/v1/auth/twitter`}
-                          onFailure={onFailed}
-                          onSuccess={onSuccess}
-                          requestTokenUrl={`${
-                            import.meta.env.VITE_SERVER_URI
-                          }/api/v1/auth/twitter/reverse`}
-                          showIcon={true}
-                          style={{
-                            backgroundColor: "transparent",
-                            border: "none",
-                          }}
-                        >
-                          <span className="primary-btn">
-                            <span>Connect twitter</span>
-                          </span>
-                        </TwitterLogin>
-                        <button className="primary-btn" onClick={followPool}>
-                          <span>Follow Pool Degen</span>
-                        </button>
+                        {
+                          !user_id && (
+                          <TwitterLogin
+                            loginUrl={`${
+                              import.meta.env.VITE_SERVER_URI
+                            }/api/v1/auth/twitter`}
+                            onFailure={onFailed}
+                            onSuccess={onSuccess}
+                            requestTokenUrl={`${
+                              import.meta.env.VITE_SERVER_URI
+                            }/api/v1/auth/twitter/reverse`}
+                            showIcon={true}
+                            style={{
+                              backgroundColor: "transparent",
+                              border: "none",
+                            }}
+                          >
+                            <span className="primary-btn">
+                              <span>Connect twitter</span>
+                            </span>
+                          </TwitterLogin>
+                          )
+                        }
+                        {
+                          !follow && (
+                            <button className="primary-btn" onClick={followPool}>
+                              <span>Follow Pool Degen</span>
+                            </button>
+                          )
+                        }
                         <button
                           className="primary-btn"
                           onClick={handleDefaultPost}
